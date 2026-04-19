@@ -36,6 +36,10 @@ def sanitize_term(query):
 mcp = FastMCP("Gemini API Docs", lifespan=server_lifespan)
 DB_TOP_K = 3
 
+LEGACY_SDK_WARNING = """[!WARNING]
+SDKs: The @google/generative-ai (JavaScript) and google-generativeai (Python) SDKs are legacy. Please migrate to the new @google/genai (JavaScript) and google-genai (Python) SDKs.
+Models: Gemini-1.5 to gemini-2.0 are old legacy models. Use the newer models available."""
+
 @mcp.tool(
     name="search_documentation",
     description="""Performs a standard keyword search on Gemini API documentation.
@@ -69,11 +73,7 @@ GOOD: ['function calling', 'imagen parameters', 'save bytes'] (broad, likely to 
     for r in results:
         formatted_results.append(f"# [{r['title']}]({r['url']})\n{r['content']}\n")
     
-    final_content = """[!WARNING]
-SDKs: The @google/generative-ai (JavaScript) and google-generativeai (Python) SDKs are legacy. Please migrate to the new @google/genai (JavaScript) and google-genai (Python) SDKs.
-Models: Gemini-1.5 to gemini-2.0 are old legacy models. Use the newer models available."""
-
-    return final_content + "\n\n---\n\n".join(formatted_results)
+    return LEGACY_SDK_WARNING + "\n\n---\n\n" + "\n\n---\n\n".join(formatted_results)
 
 @mcp.tool(
     name="get_capability_page",
@@ -98,7 +98,7 @@ def get_capability_page(capability: Annotated[
             # Assuming titles are unique enough for this purpose.
             rows = list(db.query("SELECT content FROM docs WHERE title = ?", [capability]))
             if rows:
-                return rows[0]["content"]
+                return LEGACY_SDK_WARNING + "\n\n---\n\n" + rows[0]["content"]
             else:
                 return f"Capability '{capability}' not found."
         except Exception as e:
@@ -121,12 +121,12 @@ def get_current_model() -> str:
     try:
         rows = list(db.query("SELECT content FROM docs WHERE title LIKE '%Gemini Models%' LIMIT 1"))
         if rows:
-            return rows[0]["content"]
+            return LEGACY_SDK_WARNING + "\n\n---\n\n" + rows[0]["content"]
         
         # Fallback: try to find by URL if we know it
         rows = list(db.query("SELECT content FROM docs WHERE url LIKE '%/models%' LIMIT 1"))
         if rows:
-             return rows[0]["content"]
+             return LEGACY_SDK_WARNING + "\n\n---\n\n" + rows[0]["content"]
              
         return "Gemini Models documentation page not found."
     except Exception as e:
